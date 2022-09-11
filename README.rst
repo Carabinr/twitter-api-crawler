@@ -27,6 +27,7 @@ Features
 --------
 
 * TODO
+* Fix jira
 
 Credits
 -------
