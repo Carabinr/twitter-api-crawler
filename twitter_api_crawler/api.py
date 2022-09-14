@@ -122,35 +122,6 @@ class TwitterAPIv1(object):
             'completed': completed
         }
 
-    def get_all_following(self, screen_name):
-        cursor = -1
-        has_more = True
-        output = []
-        completed = False
-
-        while has_more:
-            results = self.get_following(screen_name, cursor)
-            users = results.get('users', [])
-
-            if results.status_code == 429:
-                logger.info('Got 429: Bailing out and saving cursor')
-                has_more = False
-
-            elif len(users) > 0:
-                output.append(users)
-                cursor = results['next_cursor']
-            else:
-                completed = True
-                has_more = False
-
-        payload = {
-            'users': [item for sublist in output for item in sublist],
-            'cursor': cursor,
-            'completed': completed
-        }
-
-        return payload
-
     def get_following(self, screen_name: str, cursor: int = -1) -> Dict:
         """
         Get the users that screen_name is following.
