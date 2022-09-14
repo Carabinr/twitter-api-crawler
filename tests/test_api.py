@@ -198,3 +198,8 @@ class TestTwitterAPIv1(unittest.TestCase):
         self.assertIn('\x00', s)
         out = TwitterAPIv1.sanitize(s)
         self.assertNotIn('\x00', out)
+
+        unicode_str = r'\u0000Hunter'
+        out2 = TwitterAPIv1.sanitize(unicode_str)
+        self.assertTrue('Hunter' == out2)
+

@@ -206,5 +206,5 @@ class TwitterAPIv1(object):
         """
         Remove illegal characters from strings
         """
-        output = s.replace('\x00','')
+        output = s.replace('\x00','').replace(r'\u0000','')
         return output
