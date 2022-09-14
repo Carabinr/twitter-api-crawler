@@ -184,8 +184,10 @@ class TestTwitterAPIv1_Crawler(unittest.TestCase):
     def test_get_all_following_no_api(self):
         self.create_api('boom')
         self.crawler.pause_current_api(60)
+
         payload = self.crawler.get_all_following('heysamtexas')
+
         self.assertEqual(len(payload['users']), 0)
         self.assertFalse(payload['completed'])
         self.assertEqual(payload['cursor'], "-1")
-        print(payload)
+

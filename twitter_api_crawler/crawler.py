@@ -1,8 +1,10 @@
 from typing import Union, Dict
-from loguru import logger
+import logging
 from .exceptions import TwitterNoAvailableAPIs, Twitter429Exception
 from .api import TwitterAPIv1
 from requests_oauthlib import OAuth1
+
+logger = logging.getLogger(__name__)
 
 
 class TwitterAPIv1_Crawler(object):

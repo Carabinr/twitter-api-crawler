@@ -1,11 +1,14 @@
+import json
+import logging
 import requests
 from requests_oauthlib import OAuth1
-from typing import Dict, List
+from typing import Dict, List, Union
 import datetime
-from loguru import logger
 import re
 from requests_cache import CachedSession
 from .exceptions import Twitter429Exception, Twitter404Exception
+
+logger = logging.getLogger(__name__)
 
 
 class TwitterAPIv1(object):
@@ -42,7 +45,7 @@ class TwitterAPIv1(object):
 
         return True
 
-    def _call(self, method:str, url:str, params: Dict = None, data: Dict = None):
+    def _call(self, method:str, url:str, params: Dict = None, data: Dict = None) -> Union[Dict, List[Dict]]:
         """
         Secret method that dispatches get, post, put, and delete requests into the Session() module
         Args:
@@ -67,7 +70,8 @@ class TwitterAPIv1(object):
         logger.debug(f'Got HTTP Response: {r.status_code}')
 
         if r.status_code == 400:
-            logger.debug(r.content)
+            logger.warning("Got error 400:")
+            logger.warning(r.content)
 
         if r.status_code == 429:
             raise Twitter429Exception()
@@ -75,12 +79,14 @@ class TwitterAPIv1(object):
         if r.status_code == 404:
             raise Twitter404Exception()
 
-        return r
+        content = self.sanitize(r.content.decode())
 
-    def _get(self, url:str, params: Dict = None):
+        return json.loads(content)
+
+    def _get(self, url:str, params: Dict = None) -> Union[Dict, List[Dict]]:
         return self._call("get", url, params)
 
-    def _post(self, url:str, params: Dict = None, data: Dict = None):
+    def _post(self, url:str, params: Dict = None, data: Dict = None) -> Union[Dict, List[Dict]]:
         return self._call("post", url, params, data)
 
     def lookup_users(self, screen_name: str) -> List[Dict]:
@@ -94,12 +100,10 @@ class TwitterAPIv1(object):
             A dict object API response
 
         """
-        logger.debug(f"Looking up {screen_name}")
         url = 'https://api.twitter.com/1.1/users/lookup.json'
         data = {'screen_name': screen_name}
-        r = self._post(url, params={}, data=data)
-
-        return r.json()
+        logger.debug(f"Looking up {screen_name} on {url}")
+        return self._post(url, params={}, data=data)
 
     def get_followers(self, screen_name:str, cursor:int = -1) -> Dict:
 
@@ -107,8 +111,7 @@ class TwitterAPIv1(object):
         completed = False
         output = []
 
-        r = self._post(url, params={'count': 200, 'cursor': cursor, 'screen_name': screen_name})
-        results = r.json()
+        results = self._post(url, params={'count': 200, 'cursor': cursor, 'screen_name': screen_name})
 
         if len(results['users']) > 0:
             output.append(results['users'])
@@ -140,9 +143,7 @@ class TwitterAPIv1(object):
             'cursor': cursor,
             'screen_name': screen_name
         }
-        r = self._get(url, params)
-
-        return r.json()
+        return self._get(url, params)
 
     @staticmethod
     def get_mentions(response:Dict) -> List[str]:
@@ -170,6 +171,7 @@ class TwitterAPIv1(object):
         rem_periods = rem_url.replace('.',' ')
         pattern = '(?:(?<=\s)|^)#(\w*[A-Za-z\d\-]{2,60}\w*)'
         return [hashtag_match.group(1) for hashtag_match in re.finditer(pattern, rem_periods)]
+
     @staticmethod
     def get_hashtags(u:Dict) -> List[str]:
         """
@@ -198,3 +200,11 @@ class TwitterAPIv1(object):
             urls.append(u.get('url'))
 
         return urls
+
+    @staticmethod
+    def sanitize(s: str) -> str:
+        """
+        Remove illegal characters from strings
+        """
+        output = s.replace('\x00','')
+        return output
