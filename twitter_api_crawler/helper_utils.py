@@ -1,6 +1,5 @@
-from typing import Dict, List
 import re
-
+from typing import Dict, List
 
 MAX_ENS_DOMAIN_LENGTH = 50  # arbitrary. I don't know the actual length
 

@@ -1,18 +1,19 @@
+import datetime
 import json
 import logging
-import requests
-import datetime
-from requests_oauthlib import OAuth1  # type: ignore
 from typing import Dict, List, Union
+
+import requests
 from requests_cache import CachedSession
+from requests_oauthlib import OAuth1  # type: ignore
+
 from twitter_api_crawler.exceptions import (
-    Twitter429Exception,
     Twitter404Exception,
+    Twitter429Exception,
     Twitter503Exception,
     TwitterAPIClientException,
 )
 from twitter_api_crawler.helper_utils import sanitize
-
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +94,7 @@ class TwitterAPIv1(object):
 
         return True
 
-    def lookup_users(self, screen_name: str) -> Union[Dict, List[Dict]]:
+    def lookup_users(self, screen_name: str) -> List[Dict]:
         """Lookup a user in the Twitter API.
 
         Up to 100 usernames in CSV string may be submitted.
@@ -108,7 +109,13 @@ class TwitterAPIv1(object):
         url = 'https://api.twitter.com/1.1/users/lookup.json'
         data = {'screen_name': screen_name}
         logger.debug(f'Looking up {screen_name} on {url}')
-        return self._post(url, request_params={}, payload_data=data)
+
+        user_list = self._post(url, request_params={}, payload_data=data)
+
+        if not isinstance(user_list, list):
+            raise Exception(user_list)
+
+        return user_list
 
     def get_followers(self, screen_name: str, cursor: int = -1) -> Dict:
 
@@ -136,7 +143,7 @@ class TwitterAPIv1(object):
             'completed': completed,
         }
 
-    def get_following(self, screen_name: str, cursor: int = -1) -> Union[Dict, List[Dict]]:
+    def get_following(self, screen_name: str, cursor: int = -1) -> Dict:
         """Get the users that screen_name is following.
 
         Args:
@@ -153,7 +160,13 @@ class TwitterAPIv1(object):
             'cursor': cursor,
             'screen_name': screen_name,
         }
-        return self._get(url, request_params)
+
+        followed = self._get(url, request_params)
+
+        if not isinstance(followed, dict):
+            raise TwitterAPIClientException(followed)
+
+        return followed
 
     def _call(
         self,

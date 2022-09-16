@@ -10,3 +10,4 @@ twine==1.14.0
 responses
 wemake-python-styleguide
 types-requests
+isort

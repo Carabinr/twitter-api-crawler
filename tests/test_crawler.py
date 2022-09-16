@@ -1,13 +1,14 @@
 import time
 import unittest
 from twitter_api_crawler.api import TwitterAPIv1
-from twitter_api_crawler.crawler import TwitterAPIv1_Crawler
+from twitter_api_crawler.crawler import TwitterAPIv1Crawler
+from twitter_api_crawler.exceptions import TwitterNoAvailableAPIs
 
 
-class TestTwitterAPIv1_Crawler(unittest.TestCase):
+class TestTwitterAPIv1Crawler(unittest.TestCase):
 
     def setUp(self) -> None:
-        self.crawler = TwitterAPIv1_Crawler()
+        self.crawler = TwitterAPIv1Crawler()
 
     def tearDown(self) -> None:
         self.crawler = None
@@ -53,7 +54,7 @@ class TestTwitterAPIv1_Crawler(unittest.TestCase):
 
     def test_get_cursor_when_empty(self):
         cursor = self.crawler.get_cursor('bob')
-        self.assertEqual(cursor, "-1")
+        self.assertEqual(cursor, -1)
 
     def test_get_cursor_when_present(self):
         self.crawler.set_cursor('bob', '9999')
@@ -95,10 +96,6 @@ class TestTwitterAPIv1_Crawler(unittest.TestCase):
         self.assertEqual(api_key, 'boom_api_key')
         self.assertEqual(self.crawler.current_key, 'boom')
 
-    def test_next_api_is_none_when_empty(self):
-        cred1 = self.crawler.next_api()
-        self.assertIsNone(cred1)
-
     def test_pause_current_api(self):
         self.create_api('boom')
         self.crawler.pause_current_api(15*60)
@@ -120,28 +117,12 @@ class TestTwitterAPIv1_Crawler(unittest.TestCase):
         self.create_api('boom3')
 
         self.crawler.pause_current_api(600)
-        out1 = self.crawler.next_api()
+        self.crawler.next_api()
 
-        self.crawler.pause_current_api(600)
-        out2 = self.crawler.next_api()
-
-        self.crawler.pause_current_api(600)
-        out3 = self.crawler.next_api()
-
-        self.assertIsNone(self.crawler.next_api())
-
-    def test_next_api__no_apis_created(self):
-        self.create_api('boom')
         self.crawler.pause_current_api(600)
         self.crawler.next_api()
-        self.assertIsNone(self.crawler.next_api())
 
-    def test_get_all_following_no_api(self):
-        self.create_api('boom')
-        self.crawler.pause_current_api(60)
+        self.crawler.pause_current_api(600)
 
-        payload = self.crawler.get_all_following('heysamtexas')
-
-        self.assertEqual(len(payload['users']), 0)
-        self.assertFalse(payload['completed'])
-        self.assertEqual(payload['cursor'], -1)
+        with self.assertRaises(TwitterNoAvailableAPIs):
+            self.crawler.next_api()
