@@ -13,7 +13,8 @@ with open('HISTORY.rst') as history_file:
 requirements = [
     'requests',
     'requests_oauthlib',
-    'requests_cache'
+    'requests_cache',
+    'mypy'
 ]
 
 test_requirements = [ ]

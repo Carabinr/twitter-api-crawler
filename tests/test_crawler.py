@@ -18,9 +18,8 @@ class TestTwitterAPIv1_Crawler(unittest.TestCase):
             api_key=f"{key}_api_key",
             api_key_secret='b',
             access_token='c',
-            access_token_secret='d'
+            access_token_secret='d',
         )
-
 
     def test_create_empty(self):
         self.assertEqual(len(self.crawler.apis), 0)
@@ -52,38 +51,6 @@ class TestTwitterAPIv1_Crawler(unittest.TestCase):
         cred = self.crawler.get_api('boom2')
         self.assertIsNone(cred)
 
-    def test_delete_api(self):
-        self.create_api('boom')
-        cred = self.crawler.get_api('boom')
-        self.assertIsInstance(cred, TwitterAPIv1)
-
-        self.crawler.delete_api('boom')
-        self.assertEqual(len(self.crawler.apis), 0)
-
-    def test_update_api_missing_key(self):
-        self.create_api('boom')
-
-        with self.assertRaises(Exception):
-            self.crawler.update_api(
-                key='boom2',
-                api_key='a',
-                api_key_secret='b',
-                access_token='c',
-                access_token_secret='d'
-            )
-
-    def test_update_api(self):
-        self.create_api('boom')
-
-        self.crawler.update_api(
-            key='boom',
-            api_key='1',
-            api_key_secret='2',
-            access_token='3',
-            access_token_secret='4'
-        )
-        self.assertEqual(len(self.crawler.apis), 1)
-
     def test_get_cursor_when_empty(self):
         cursor = self.crawler.get_cursor('bob')
         self.assertEqual(cursor, "-1")
@@ -92,18 +59,6 @@ class TestTwitterAPIv1_Crawler(unittest.TestCase):
         self.crawler.set_cursor('bob', '9999')
         cursor = self.crawler.get_cursor('bob')
         self.assertEqual(cursor, "9999")
-
-    # def test_get_next_key(self):
-    #     self.create_api('bob')
-    #     self.assertEqual(self.crawler.get_next_key(), 'bob')
-    #
-    #     self.create_api('bob2')
-    #     self.assertEqual(self.crawler.current_key, 'bob')
-    #
-    #     self.assertEqual(self.crawler.get_next_key(), 'bob2')
-    #
-    # def test_get_next_key_when_nos(self):
-    #     self.assertIsNone(self.crawler.get_next_key())
 
     def test_fetch_api_when_empty(self):
         self.assertIsNone(self.crawler.fetch_api())
@@ -189,5 +144,4 @@ class TestTwitterAPIv1_Crawler(unittest.TestCase):
 
         self.assertEqual(len(payload['users']), 0)
         self.assertFalse(payload['completed'])
-        self.assertEqual(payload['cursor'], "-1")
-
+        self.assertEqual(payload['cursor'], -1)

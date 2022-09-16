@@ -7,3 +7,11 @@ class Twitter429Exception(Exception):
 
 class Twitter404Exception(Exception):
     pass
+
+
+class Twitter503Exception(Exception):
+    pass
+
+
+class TwitterAPIClientException(Exception):
+    pass

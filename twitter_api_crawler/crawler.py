@@ -2,23 +2,29 @@ from typing import Union, Dict
 import logging
 from .exceptions import TwitterNoAvailableAPIs, Twitter429Exception
 from .api import TwitterAPIv1
-from requests_oauthlib import OAuth1
+
 
 logger = logging.getLogger(__name__)
 
 
 class TwitterAPIv1_Crawler(object):
-    apis = {}
-    current_key = ''
-    cursors = {}
 
     def __init__(self):
+        """Initialize the crawler object."""
         self.apis = {}
         self.current_key = ''
         self.cursors = {}
 
-    def create_api(self, key:str, api_key:str, api_key_secret:str, access_token:str, access_token_secret:str):
+    def create_api(
+        self,
+        key: str,
+        api_key: str,
+        api_key_secret: str,
+        access_token: str,
+        access_token_secret: str,
+    ):
         """
+            Initialize a new TwitterAPI and add it to the list of APIs
 
         @param key:
         @param api_key:
@@ -35,27 +41,21 @@ class TwitterAPIv1_Crawler(object):
 
         self.apis[key] = TwitterAPIv1(api_key, api_key_secret, access_token, access_token_secret)
 
-
-    def get_api(self, key:str):
+    def get_api(self, key: str) -> Union[TwitterAPIv1, None]:
+        """Fetch an API client by it lookup key."""
         return self.apis.get(key, None)
 
-    def delete_api(self, key:str) -> None:
-        if key in self.apis:
-            del self.apis[key]
-
-
-    def update_api(self, key:str, api_key:str, api_key_secret:str, access_token:str, access_token_secret:str):
-        if key not in self.apis:
-            raise Exception('That key does not exist')
-
-        self.apis[key] = OAuth1(api_key, api_key_secret, access_token, access_token_secret)
-
     def fetch_api(self) -> Union[TwitterAPIv1, None]:
+        """
+
+        Returns
+        -------
+
+        """
         if len(self.apis) == 0:
             return None
 
         return self.apis[self.current_key]
-
 
     def next_api(self) -> Union[TwitterAPIv1, None]:
         """
@@ -74,13 +74,15 @@ class TwitterAPIv1_Crawler(object):
 
     def pause_current_api(self, secs:int) -> None:
         """
-        Calling this method will set a sleep property on the TwitterAPI object. If it is set (and still valid), then
-        it will not be included when rotating API clients.
+        Set a sleep property on the TwitterAPI object.
 
-        Args:
+        If it is set (and still valid), then it will not be included when
+        rotating API clients.
+
+        Args
             secs: the number of seconds this api client should sleep
 
-        Returns:
+        Returns
             None
         """
         if self.current_key:
@@ -92,23 +94,26 @@ class TwitterAPIv1_Crawler(object):
     def get_cursor(self, username:str) -> str:
         return self.cursors.get(username, '-1')
 
-    def get_all_following(self, username: str, cursor: str = "-1") -> Dict:
+    def get_all_following(self, username: str, cursor: int = -1) -> Dict:
         """
-        Given a Username (eg Twitter screen_name) and optional Twitter "cursor", try to crawl as many followed
-        accounts as possible with the assigned Twitter Objects.
+        Given a Username (eg Twitter screen_name) and optional Twitter
+        "cursor", try to crawl as many followed accounts as possible with the
+        assigned Twitter Objects.
 
-        If API Rate limits are hit (HTTP 429), then it will mark that particular API client as asleep and rotate
-        to another client in the list.
+        If API Rate limits are hit (HTTP 429), then it will mark that
+        particular API client as asleep and rotate to another client in the list.
 
-        Once it runs out of available API clients, it will exit the loop and return the users it has up to that point.
-        It will also return the last known cursor so you can save your process.
+        Once it runs out of available API clients, it will exit the loop and
+        return the users it has up to that point. It will also return the last
+        known cursor so you can save your process.
 
-        Args:
+        Args
             username (str): username (eg. screen_name) of a known Twitter user
             cursor (int): An integer that is used for pagination with the Twitter API
 
-        Returns:
-            Python dict containing username(str), users(list of users crawled), cursor (int), and completed(boolean)
+        Returns
+            Python dict containing username(str), users(list of users crawled),
+            cursor (int), and completed(boolean)
         """
         has_more = True
         output = []
@@ -129,7 +134,7 @@ class TwitterAPIv1_Crawler(object):
                 continue
 
             users = results.get('users', [])
-            cursor = results.get('next_cursor')
+            cursor = results.get('next_cursor', -1)
 
             if len(users) > 0:
                 output.append(users)
@@ -150,28 +155,33 @@ class TwitterAPIv1_Crawler(object):
 
     def get_following(self, username: str, cursor: int = -1) -> Dict:
         """
-        Given a Username (eg Twitter screen_name) and optional Twitter "cursor", try to crawl as many followed
-        accounts as possible with the assigned Twitter Objects.
+        Crawl as many followed accounts as possible with the Twitter Objects.
 
-        If API Rate limits are hit (HTTP 429), then it will mark that particular API client as asleep and rotate
-        to another client in the list.
+        Given a Username (eg Twitter screen_name) and optional Twitter
+        "cursor", try to crawl as many followed accounts as possible with the
+        assigned Twitter Objects.
 
-        Once it runs out of available API clients, it will exit the loop and return the users it has up to that point.
-        It will also return the last known cursor so you can save your process.
+        If API Rate limits are hit (HTTP 429), then it will mark that
+        particular API client as asleep and rotate to another client in the
+        list.
 
-        Args:
+        Once it runs out of available API clients, it will exit the loop and
+        return the users it has up to that point. It will also return the last
+        known cursor so you can save your process.
+
+        Args
             username (str): username (eg. screen_name) of a known Twitter user
-            cursor (int): An integer that is used for pagination with the Twitter API
+            cursor (int): An integer that is used for pagination with the
+            Twitter API
 
-        Returns:
-            Python dict containing username(str), users(list of users crawled), cursor (int), and completed(boolean)
+        Returns
+            Python dict containing username(str), users(list of users crawled),
+            cursor (int), and completed(boolean)
 
-        Raises:
+        Raises
             Twitter429Exception
         """
         output = []
-        completed = False
-
         api = self.next_api()
 
         if api is None:
@@ -185,18 +195,16 @@ class TwitterAPIv1_Crawler(object):
             raise Twitter429Exception()
 
         users = results.get('users', [])
-        cursor = results.get('next_cursor')
+        cursor = int(results.get('next_cursor', -1))
 
         if len(users) > 0:
             output.append(users)
 
         flat_users = [item for sublist in output for item in sublist]
 
-        payload = {
+        return {
             'username': username,
             'users': flat_users,
             'cursor': cursor,
-            'completed': cursor == 0
+            'completed': cursor == 0,
         }
-
-        return payload
