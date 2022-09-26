@@ -9,6 +9,7 @@ from twitter_api_crawler.helper_utils import (
     get_hashtags,
     get_mentions,
 )
+import responses
 
 
 class TestSanitize(unittest.TestCase):
@@ -25,6 +26,7 @@ class TestSanitize(unittest.TestCase):
         unicode_str = r'\u0000Hunter'
         out2 = sanitize(unicode_str)
         self.assertTrue('Hunter' == out2)
+
 
 class TestGetEnsDomains(unittest.TestCase):
 
@@ -52,7 +54,6 @@ class TestGetEnsDomains(unittest.TestCase):
             out = extract_ens_domains(_['fixed'])
             out = [''] if len(out) == 0 else out
             self.assertEqual(_['results'].lower().split(','), out)
-
 
 
 class TestGetMentions(unittest.TestCase):
@@ -217,3 +218,120 @@ class TestGetMentions(unittest.TestCase):
         self.assertEqual(len(out), 1)
         self.assertEqual(out[0], 'hashtag')
 
+
+class TestGetUrls(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self.user_obj_fragment = {
+            'url': 'https://t.co/0ymMfMj6ht',
+            'entities': {
+                'url': {
+                    'urls': [
+                        {
+                            'url': 'https://t.co/0ymMfMj6ht',
+                            'expanded_url': 'https://www.curabase.com',
+                            'display_url': 'curabase.com',
+                            'indices': [0, 23],
+                        },
+                        {
+                            'url': 'https://t.co/0ymMfMj6ht2',
+                            'expanded_url': 'https://www.simplecto.com',
+                            'display_url': 'curabase2.com',
+                            'indices': [0, 23],
+                        },
+                    ],
+                },
+                'description': {
+                    'urls': [
+                        {
+                            'display_url': 'techunity.dev',
+                            'expanded_url': 'http://techunity.dev',
+                            'indices': [0, 23],
+                            'url': 'https://t.co/p1c9TRYlXO',
+                        },
+                        {
+                            'display_url': 'techunity2.dev',
+                            'expanded_url': 'http://techunity2.dev',
+                            'indices': [0, 23],
+                            'url': 'https://t.co/p1c9TRYlXO2',
+                        },
+                    ],
+                },
+            },
+        }
+
+    def test_extract_urls(self):
+        actual = get_urls(self.user_obj_fragment)
+        expected = sorted([
+            'https://www.curabase.com',
+            'https://www.simplecto.com',
+            'http://techunity.dev',
+            'http://techunity2.dev',
+        ])
+        self.assertEqual(expected, actual)
+
+    @responses.activate
+    def test_extract_urls_empty(self):
+        rsp1 = responses.Response(
+            method='HEAD',
+            url='https://t.co/0ymMfMj6ht',
+            status=301,
+            headers={'Location': 'https://www.curabase.com/'},
+        )
+        rsp2 = responses.Response(
+            method='HEAD',
+            url='https://www.curabase.com/',
+            status=200,
+        )
+        responses.add(rsp1)
+        responses.add(rsp2)
+        fragment = {
+            'url': 'https://t.co/0ymMfMj6ht',
+            'entities': {
+                'url': {
+                    'urls': [],
+                },
+                'description': {
+                    'urls': [],
+                },
+            },
+        }
+        actual = get_urls(fragment)
+        expected = ['https://www.curabase.com']
+        self.assertEqual(expected, actual)
+
+
+class TestGetHashTagsFromText(unittest.TestCase):
+
+    def test_text_with_url(self):
+        blob = 'Friends with @heysamtexas. Find me here: https://example.com/bob#uhoh\n\n#hashtagsforlife'
+        expected = ['hashtagsforlife']
+        actual = get_hashtags_from_text(blob)
+
+        self.assertEqual(expected, actual)
+
+    def test_text_with_hashtag_in_url(self):
+        actual = get_hashtags_from_text(
+            'https://test.com/hahah#boom ##bob' +
+            ' https://search.brave.com/search?q=wtf+am|i+doing+' +
+            'length&source=desktop'
+        )
+        self.assertEqual(['bob'], actual)
+
+    def test_text_with_hashtag_no_spaces(self):
+        blob = 'I am an #idiot#toomanytags stuck together'
+        expected = ['idiot', 'toomanytags']
+        actual = get_hashtags_from_text(blob)
+        self.assertEqual(expected, actual)
+
+    def test_text_full_retard(self):
+        blob = '#I#am#an##idiot#toomanytags#stuck#together'
+        expected = ['I', 'am', 'an', 'idiot', 'toomanytags', 'stuck', 'together']
+        actual = get_hashtags_from_text(blob)
+        self.assertEqual(expected, actual)
+
+    def test_dash_and_underscores(self):
+        blob = 'This blob tests #hash-hypens and #hash_underscores'
+        expected = ['hash-hypens', 'hash_underscores']
+        actual = get_hashtags_from_text(blob)
+        self.assertEqual(expected, actual)

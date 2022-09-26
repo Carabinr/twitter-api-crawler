@@ -1,6 +1,8 @@
 import re
 from typing import Dict, List
 
+import requests
+
 MAX_ENS_DOMAIN_LENGTH = 50  # arbitrary. I don't know the actual length
 
 
@@ -22,7 +24,7 @@ def extract_ens_domains(blob: str) -> List[str]:
     Returns
         List of ENS domains
     """
-    out: List = list()
+    out: List = []
     blob = blob.lower()
 
     if blob == '.eth':
@@ -31,7 +33,9 @@ def extract_ens_domains(blob: str) -> List[str]:
     if '.eth' not in blob:
         return out
 
-    blob = blob.replace('\n', '').replace('\r', '').replace('#', ' ').replace('$', ' ').replace('/', ' ')
+    blob = re.sub('[\n\r]', '', blob)
+    blob = re.sub('[#$/]', ' ', blob)
+
     str_list: List[str] = re.split(' ', blob)
 
     str_list = [_ for _ in str_list if len(_) <= MAX_ENS_DOMAIN_LENGTH]
@@ -100,10 +104,25 @@ def get_hashtags_from_text(text: str) -> List[str]:
     Returns
         A list of strings of hashtags
     """
-    rem_url = re.sub(r'https?:[^\s]+', '', text)
-    rem_periods = rem_url.replace('.', ' ')
-    pattern = r'(?:(?<=\s)|^)#(\w*[A-Za-z\d\-]{2,60}\w*)'
-    return [hashtag_match.group(1) for hashtag_match in re.finditer(pattern, rem_periods)]
+    text = re.sub(r'https?:\S+', '', text)  # remove urls
+
+    # remove punctuation and other non-word type chars
+    text = re.sub(r'[^\w\s#_-]', ' ', text)
+
+    # remove newlines
+    text = text.replace('\n', ' ')
+
+    text = text.split(' ')
+
+    hashtags = [word.split('#') for word in text if word.startswith('#')]
+
+    flat_list = []
+    for sublist in hashtags:
+        for _ in sublist:
+            if _:  # will remote null and empty vals
+                flat_list.append(_)
+
+    return flat_list
 
 
 def get_hashtags(user: Dict) -> List[str]:
@@ -120,6 +139,20 @@ def get_hashtags(user: Dict) -> List[str]:
     return [name.get('text') for name in mentions]
 
 
+def unroll_url(url: str) -> str:
+    """Follow shortened links to their final endpoint."""
+    if not url.startswith('https://t.co'):
+        return url
+
+    session = requests.Session()
+    resp = session.head(url, allow_redirects=True)
+
+    if resp.ok:
+        return resp.url.rstrip('/')
+
+    return ''
+
+
 def get_urls(user: Dict) -> List[str]:
     """
     Extract urls from a Twitter API user Dict.
@@ -130,11 +163,20 @@ def get_urls(user: Dict) -> List[str]:
     @param user: API User response object
     @return: List of strings or empty list
     """
-    url_list = user.get('entities', {}).get('url', {}).get('urls', [])
+    urls = []
 
-    urls = [name.get('expanded_url') for name in url_list if name.get('expanded_url')]
+    entities = user.get('entities', {})
+    url_list = entities.get('url', {}).get('urls', [])
+    description_url_list = entities.get('description', {}).get('urls', [])
 
-    if user.get('url'):
-        urls.append(user.get('url'))
+    for _ in url_list:
+        urls.append(_.get('expanded_url', ''))
 
-    return urls
+    for _ in description_url_list:
+        urls.append(_.get('expanded_url', ''))
+
+    urls.append(user.get('url', ''))
+
+    cleaned_urls = [unroll_url(url) for url in urls if url != '']
+
+    return sorted(set(cleaned_urls))
