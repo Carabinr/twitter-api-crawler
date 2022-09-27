@@ -2,7 +2,7 @@ import unittest
 import csv
 from twitter_api_crawler.helper_utils import (
     sanitize,
-    extract_ens_domains,
+    get_ens_domains_from_text,
     get_hashtags_from_text,
     get_mentions_from_text,
     get_urls,
@@ -31,29 +31,37 @@ class TestSanitize(unittest.TestCase):
 class TestGetEnsDomains(unittest.TestCase):
 
     def test_extract_ens_domains(self):
-        out = extract_ens_domains('Houston, Texas')
-        self.assertCountEqual([], out)
+        out = get_ens_domains_from_text('Houston, Texas')
+        self.assertCountEqual(list({}), out)
 
-        out = extract_ens_domains('bob.eth')
-        self.assertEqual('bob.eth', out[0])
+        out = get_ens_domains_from_text('heysamtexas')
+        self.assertCountEqual(list({}), out)
 
-        out = extract_ens_domains('bob.eth / bill.eth')
-        self.assertEqual(['bob.eth', 'bill.eth'], out)
+    def test_single_domain(self):
+        out = get_ens_domains_from_text('this only has one bob.eth')
+        self.assertEqual(list({'bob.eth'}), out)
 
-        out = extract_ens_domains('.eth')
-        self.assertEqual([], out)
+    def test_multiple_domains(self):
+        out = get_ens_domains_from_text('bob.eth / bill.eth')
+        self.assertEqual(list({'bob.eth', 'bill.eth'}), out)
 
-        out = extract_ens_domains('heysamtexas')
-        self.assertCountEqual([], out)
+    def test_only_tld(self):
+        out = get_ens_domains_from_text('.eth')
+        self.assertEqual(list({}), out)
 
+    def test_duplicate_and_case_sensitive(self):
+        out = get_ens_domains_from_text('bob.eth BOB.eth')
+        self.assertEqual(list({'bob.eth'}), out)
+
+    def test_from_file(self):
         with open('descriptions.csv', 'r') as f:
             reader = csv.DictReader(f)
             a = list(reader)
 
         for _ in a:
-            out = extract_ens_domains(_['fixed'])
+            out = get_ens_domains_from_text(_['fixed'])
             out = [''] if len(out) == 0 else out
-            self.assertEqual(_['results'].lower().split(','), out)
+            self.assertEqual(list(set(_['results'].lower().split(','))), out)
 
 
 class TestGetMentions(unittest.TestCase):
@@ -162,61 +170,43 @@ class TestGetMentions(unittest.TestCase):
         output = get_urls(self.single_obj)
         self.assertEqual(len(output), 2)
 
+
+class TestGetMentionsFromText(unittest.TestCase):
+
     def test_get_mentions_from_text_one_result(self):
         description = "Hi, I'm bob. I work for @heysamtexas"
         out = get_mentions_from_text(description)
-        self.assertEqual(len(out), 1)
-        self.assertEqual(out[0], 'heysamtexas')
+        self.assertEqual(list({'heysamtexas'}), out)
 
-    def test_get_mentions_from_text_multiple_results(self):
+    def test_multiple_results(self):
         description = "Hi, I'm bob. I work for @heysamtexas formerly @king"
         out = get_mentions_from_text(description)
-        self.assertEqual(len(out), 2)
-        self.assertEqual(out[0], 'heysamtexas')
+        self.assertEqual(list({'heysamtexas', 'king'}), out)
 
-    def test_get_mentions_from_text_empty_string(self):
+    def test_empty_string(self):
         description = ""
         out = get_mentions_from_text(description)
-        self.assertEqual(len(out), 0)
+        self.assertEqual(list({}), out)
 
-    def test_get_mentions_from_text_no_mentions(self):
+    def test_no_mentions(self):
         description = "This is a description without a mention"
         out = get_mentions_from_text(description)
-        self.assertEqual(len(out), 0)
+        self.assertEqual(list({}), out)
 
-    def test_get_mentions_from_text_with_email(self):
+    def test_with_email(self):
         description = "This is a description without a mention. bob@idiot.com"
         out = get_mentions_from_text(description)
-        self.assertEqual(len(out), 0)
+        self.assertEqual(list({}), out)
 
-    def test_get_hashtags_from_text_empty(self):
-        description = ''
-        out = get_hashtags_from_text(description)
-        self.assertEqual(len(out), 0)
+    def test_duplicates(self):
+        description = "We have dupes @bob and @bob"
+        out = get_mentions_from_text(description)
+        self.assertEqual(list({'bob'}), out)
 
-    def test_get_hashtags_from_text_one_hashtag(self):
-        description = 'This is my #hashtag'
-        out = get_hashtags_from_text(description)
-        self.assertEqual(len(out), 1)
-        self.assertEqual(out[0], 'hashtag')
-
-    def test_get_hashtags_from_text_multiple_hashtags(self):
-        description = 'This is my #hashtag. There is another one #here.'
-        out = get_hashtags_from_text(description)
-        self.assertEqual(len(out), 2)
-        self.assertEqual(out[1], 'here')
-
-    def test_get_hashtags_from_text_multiple_hashtags_tricky(self):
-        description = 'This is my #hashtag. There is another one #here.#here2'
-        out = get_hashtags_from_text(description)
-        self.assertEqual(len(out), 3)
-        self.assertEqual(out[2], 'here2')
-
-    def test_get_hashtags_from_text_with_tricky_url(self):
-        description = 'This is my #hashtag. https://www.bob.com/#bob'
-        out = get_hashtags_from_text(description)
-        self.assertEqual(len(out), 1)
-        self.assertEqual(out[0], 'hashtag')
+    def test_case_insensitive(self):
+        description = "We have dupes @lower and @UPPER and @MixedCase"
+        out = get_mentions_from_text(description)
+        self.assertEqual(list({'lower', 'upper', 'mixedcase'}), out)
 
 
 class TestGetUrls(unittest.TestCase):
@@ -303,35 +293,77 @@ class TestGetUrls(unittest.TestCase):
 
 class TestGetHashTagsFromText(unittest.TestCase):
 
-    def test_text_with_url(self):
-        blob = 'Friends with @heysamtexas. Find me here: https://example.com/bob#uhoh\n\n#hashtagsforlife'
-        expected = ['hashtagsforlife']
-        actual = get_hashtags_from_text(blob)
+    def test_text_empty(self):
+        description = ''
+        out = get_hashtags_from_text(description)
+        self.assertEqual(list({}), out)
 
+    def test_one_hashtag(self):
+        description = 'This is my #hashtag'
+        out = get_hashtags_from_text(description)
+        self.assertEqual(list({'hashtag'}), out)
+
+    def test_multiple_hashtags(self):
+        description = 'This is my #hashtag. There is another one #here.'
+        out = get_hashtags_from_text(description)
+        self.assertEqual(list({'hashtag', 'here'}), out)
+
+    def test_multiple_hashtags_tricky(self):
+        description = 'This is my #hashtag. There is another one #here.#here2'
+        out = get_hashtags_from_text(description)
+        self.assertEqual(list({'hashtag', 'here', 'here2'}), out)
+
+    def test_with_tricky_url(self):
+        description = 'This is my #hashtag. https://www.bob.com/#bob'
+        out = get_hashtags_from_text(description)
+        self.assertEqual(list({'hashtag'}), out)
+
+    def test_with_url(self):
+        blob = 'Friends with @heysamtexas. Find me here: https://example.com/bob#uhoh\n\n#hashtagsforlife'
+        expected = list({'hashtagsforlife'})
+        actual = get_hashtags_from_text(blob)
         self.assertEqual(expected, actual)
 
-    def test_text_with_hashtag_in_url(self):
+    def test_hashtag_in_url(self):
         actual = get_hashtags_from_text(
             'https://test.com/hahah#boom ##bob' +
             ' https://search.brave.com/search?q=wtf+am|i+doing+' +
             'length&source=desktop'
         )
-        self.assertEqual(['bob'], actual)
+        self.assertEqual(list({'bob'}), actual)
 
-    def test_text_with_hashtag_no_spaces(self):
+    def test_hashtag_no_spaces(self):
         blob = 'I am an #idiot#toomanytags stuck together'
-        expected = ['idiot', 'toomanytags']
+        expected = list({'idiot', 'toomanytags'})
         actual = get_hashtags_from_text(blob)
         self.assertEqual(expected, actual)
 
-    def test_text_full_retard(self):
+    def test_full_retard(self):
         blob = '#I#am#an##idiot#toomanytags#stuck#together'
-        expected = ['I', 'am', 'an', 'idiot', 'toomanytags', 'stuck', 'together']
+        expected = list({'i', 'am', 'an', 'idiot', 'toomanytags', 'stuck', 'together'})
         actual = get_hashtags_from_text(blob)
         self.assertEqual(expected, actual)
 
     def test_dash_and_underscores(self):
         blob = 'This blob tests #hash-hypens and #hash_underscores'
-        expected = ['hash-hypens', 'hash_underscores']
+        expected = list({'hash-hypens', 'hash_underscores'})
+        actual = get_hashtags_from_text(blob)
+        self.assertEqual(expected, actual)
+
+    def test_mixed_case(self):
+        blob = 'This blob tests #lowercase and #UPPERCASE and #MixedCase'
+        expected = list({'lowercase', 'uppercase', 'mixedcase'})
+        actual = get_hashtags_from_text(blob)
+        self.assertEqual(expected, actual)
+
+    def test_duplicates(self):
+        blob = 'This blob tests #one and #one and #two'
+        expected = list({'one', 'two'})
+        actual = get_hashtags_from_text(blob)
+        self.assertEqual(expected, actual)
+
+    def test_no_hashtags(self):
+        blob = 'This blob has no hashtags'
+        expected = list({})
         actual = get_hashtags_from_text(blob)
         self.assertEqual(expected, actual)

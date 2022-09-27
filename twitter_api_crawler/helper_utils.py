@@ -6,7 +6,7 @@ import requests
 MAX_ENS_DOMAIN_LENGTH = 50  # arbitrary. I don't know the actual length
 
 
-def extract_ens_domains(blob: str) -> List[str]:
+def get_ens_domains_from_text(text: str) -> List[str]:
     """
     Extract a list of ENS domains from a blob of text.
 
@@ -25,18 +25,18 @@ def extract_ens_domains(blob: str) -> List[str]:
         List of ENS domains
     """
     out: List = []
-    blob = blob.lower()
+    text = text.lower()
 
-    if blob == '.eth':
+    if text == '.eth':
         return out
 
-    if '.eth' not in blob:
+    if '.eth' not in text:
         return out
 
-    blob = re.sub('[\n\r]', '', blob)
-    blob = re.sub('[#$/]', ' ', blob)
+    text = re.sub('[\n\r]', '', text)
+    text = re.sub('[#$/]', ' ', text)
 
-    str_list: List[str] = re.split(' ', blob)
+    str_list: List[str] = re.split(' ', text)
 
     str_list = [_ for _ in str_list if len(_) <= MAX_ENS_DOMAIN_LENGTH]
     str_list = [_ for _ in str_list if '.eth' in _]
@@ -48,7 +48,56 @@ def extract_ens_domains(blob: str) -> List[str]:
         if test_str.endswith('.eth'):
             out.append(test_str)
 
-    return out
+    return list(set(out))
+
+
+def get_mentions_from_text(text: str) -> List[str]:
+    """
+    Pull user mentions (@username) from a blob of text.
+
+    Parameters
+        text: The target piece of text
+
+    Returns
+        A list of mentions
+    """
+    text = text.lower()
+    matches = re.findall(r'(^|[^@\w])@(\w{1,15})', text)
+    extracted = [_[1] for _ in matches]
+    return list(set(extracted))
+
+
+def get_hashtags_from_text(text: str) -> List[str]:
+    """
+    Return a list of hashtags found in a blob of text.
+
+    Parameters
+        text: The target blob of text
+
+    Returns
+        A list of strings of hashtags
+    """
+    text = text.lower()
+
+    text = re.sub(r'https?:\S+', '', text)  # remove urls
+
+    # remove punctuation and other non-word type chars
+    text = re.sub(r'[^\w\s#_-]', ' ', text)
+
+    # remove newlines
+    text = text.replace('\n', ' ')
+
+    text = text.split(' ')
+
+    hashtags = [word.split('#') for word in text if word.startswith('#')]
+
+    flat_list = []
+    for sublist in hashtags:
+        for _ in sublist:
+            if _:  # will remote null and empty vals
+                flat_list.append(_)
+
+    return list(set(flat_list))
 
 
 def sanitize(string: str) -> str:
@@ -78,51 +127,6 @@ def get_mentions(response: Dict) -> List[str]:
     """
     mentions = response.get('entities', {}).get('user_mentions', [])
     return [name.get('screen_name') for name in mentions]
-
-
-def get_mentions_from_text(text: str) -> List[str]:
-    """
-    Pull user mentions (@username) from a blob of text.
-
-    Parameters
-        text: The target piece of text
-
-    Returns
-        A list of mentions
-    """
-    matches = re.findall(r'(^|[^@\w])@(\w{1,15})', text)
-    return [_[1] for _ in matches]
-
-
-def get_hashtags_from_text(text: str) -> List[str]:
-    """
-    Return a list of hashtags found in a blob of text.
-
-    Parameters
-        text: The target blob of text
-
-    Returns
-        A list of strings of hashtags
-    """
-    text = re.sub(r'https?:\S+', '', text)  # remove urls
-
-    # remove punctuation and other non-word type chars
-    text = re.sub(r'[^\w\s#_-]', ' ', text)
-
-    # remove newlines
-    text = text.replace('\n', ' ')
-
-    text = text.split(' ')
-
-    hashtags = [word.split('#') for word in text if word.startswith('#')]
-
-    flat_list = []
-    for sublist in hashtags:
-        for _ in sublist:
-            if _:  # will remote null and empty vals
-                flat_list.append(_)
-
-    return flat_list
 
 
 def get_hashtags(user: Dict) -> List[str]:
