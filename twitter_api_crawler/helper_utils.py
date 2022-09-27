@@ -157,7 +157,10 @@ def unroll_url(url: str) -> str:
     unrolled url string
 
     """
-    if not url.startswith('https://t.co'):
+    if url.startswith('http://t.co'):
+        return unroll_url(url.replace('http://t.co', 'https://t,co'))
+
+    if not re.match('^https?:\/\/t.co', url):
         return url
 
     session = requests.Session()

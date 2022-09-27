@@ -6,6 +6,7 @@ from twitter_api_crawler.helper_utils import (
     get_hashtags_from_text,
     get_mentions_from_text,
     get_urls,
+    unroll_url,
     get_hashtags,
     get_mentions,
 )
@@ -207,6 +208,50 @@ class TestGetMentionsFromText(unittest.TestCase):
         description = "We have dupes @lower and @UPPER and @MixedCase"
         out = get_mentions_from_text(description)
         self.assertEqual(list({'lower', 'upper', 'mixedcase'}), out)
+
+
+class TestUnrollUrl(unittest.TestCase):
+
+    @responses.activate
+    def test_http_tco(self):
+        url = 'https://t.co/bobgogog'
+
+        rsp1 = responses.Response(
+            url=url,
+            method='HEAD',
+            status=301,
+            headers={'Location': 'https://www.curabase.com/'},
+        )
+        responses.add(rsp1)
+        out = unroll_url(url)
+        self.assertEqual('https://www.curabase.com', out)
+
+    @responses.activate
+    def test_https_tco(self):
+        url = 'https://t.co/bobgogog'
+
+        rsp1 = responses.Response(
+            url=url,
+            method='HEAD',
+            status=301,
+            headers={'Location': 'https://www.curabase.com/'},
+        )
+        responses.add(rsp1)
+        out = unroll_url(url)
+        self.assertEqual('https://www.curabase.com', out)
+
+    @responses.activate
+    def test_non_tcp(self):
+        url = 'https://www.curabase.com'
+
+        rsp1 = responses.Response(
+            url=url,
+            method='HEAD',
+            status=200,
+        )
+        responses.add(rsp1)
+        out = unroll_url(url)
+        self.assertEqual('https://www.curabase.com', out)
 
 
 class TestGetUrls(unittest.TestCase):
