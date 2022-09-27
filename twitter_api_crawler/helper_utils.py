@@ -146,13 +146,12 @@ def get_hashtags(user: Dict) -> List[str]:
     return [name.get('text') for name in mentions]
 
 
-def unroll_url(url: str, verify_ssl: bool = True) -> str:
+def unroll_url(url: str) -> str:
     """
     Follow shortened links to their final endpoint.
 
     Params:
     url: URL to unroll
-    verify_ssl: Verify SSL when making HTTP requests
 
     Returns
     unrolled url string
@@ -162,19 +161,14 @@ def unroll_url(url: str, verify_ssl: bool = True) -> str:
         return url
 
     session = requests.Session()
-    try:
-        resp = session.head(url, allow_redirects=True, verify=verify_ssl)
-    except Exception as ex:
-        logger.warning(ex)
-        return ''
+    resp = session.head(url, allow_redirects=False)
 
-    if resp.ok:
-        return resp.url.rstrip('/')
+    if resp.status_code in [301, 302]:
+        return resp.next.url.rstrip('/')
 
-    return ''
+    return url
 
-
-def get_urls(user: Dict, verify_ssl: bool = True) -> List[str]:
+def get_urls(user: Dict) -> List[str]:
     """
     Extract urls from a Twitter API user Dict.
 
@@ -199,7 +193,7 @@ def get_urls(user: Dict, verify_ssl: bool = True) -> List[str]:
 
     urls.append(user.get('url', ''))
 
-    unrolled_urls = [unroll_url(url, verify_ssl=verify_ssl) for url in urls if url]
+    unrolled_urls = [unroll_url(url) for url in urls if url]
 
     # This will remove nulls and empty strings
     cleaned_urls = [url for url in unrolled_urls if url]
