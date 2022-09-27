@@ -214,10 +214,10 @@ class TestUnrollUrl(unittest.TestCase):
 
     @responses.activate
     def test_http_tco(self):
-        url = 'https://t.co/bobgogog'
+        url = 'http://t.co/bobgogog'
 
         rsp1 = responses.Response(
-            url=url,
+            url=url.replace('http', 'https'),
             method='HEAD',
             status=301,
             headers={'Location': 'https://www.curabase.com/'},

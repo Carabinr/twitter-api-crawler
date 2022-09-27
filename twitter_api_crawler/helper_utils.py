@@ -158,9 +158,9 @@ def unroll_url(url: str) -> str:
 
     """
     if url.startswith('http://t.co'):
-        return unroll_url(url.replace('http://t.co', 'https://t,co'))
+        return unroll_url(url.replace('http://t.co', 'https://t.co'))
 
-    if not re.match('^https?:\/\/t.co', url):
+    if not url.startswith('https://t.co'):
         return url
 
     session = requests.Session()
