@@ -1,7 +1,10 @@
 import re
 from typing import Dict, List
 
+import logging
 import requests
+
+logger = logging.getLogger(__name__)
 
 MAX_ENS_DOMAIN_LENGTH = 50  # arbitrary. I don't know the actual length
 
@@ -149,7 +152,11 @@ def unroll_url(url: str) -> str:
         return url
 
     session = requests.Session()
-    resp = session.head(url, allow_redirects=True)
+    try:
+        resp = session.head(url, allow_redirects=True)
+    except Exception as ex:
+        logger.warning(ex)
+        return ''
 
     if resp.ok:
         return resp.url.rstrip('/')
@@ -181,6 +188,9 @@ def get_urls(user: Dict) -> List[str]:
 
     urls.append(user.get('url', ''))
 
-    cleaned_urls = [unroll_url(url) for url in urls if url]
+    unrolled_urls = [unroll_url(url) for url in urls if url]
+
+    # This will remove nulls and empty strings
+    cleaned_urls = [url for url in unrolled_urls if url]
 
     return sorted(set(cleaned_urls))
