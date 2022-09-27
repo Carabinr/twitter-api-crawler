@@ -2,4 +2,4 @@
 
 __author__ = """Sam Texas"""
 __email__ = 'github@simplecto.com'
-__version__ = '0.1.6'
+__version__ = '0.1.7'
