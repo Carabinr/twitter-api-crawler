@@ -181,6 +181,6 @@ def get_urls(user: Dict) -> List[str]:
 
     urls.append(user.get('url', ''))
 
-    cleaned_urls = [unroll_url(url) for url in urls if url != '']
+    cleaned_urls = [unroll_url(url) for url in urls if url]
 
     return sorted(set(cleaned_urls))

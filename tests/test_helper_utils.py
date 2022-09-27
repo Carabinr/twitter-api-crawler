@@ -250,6 +250,19 @@ class TestGetUrls(unittest.TestCase):
             },
         }
 
+        self.empty_obj_fragment = {
+            'url': None,
+            'entities': {
+                'url': {
+                    'urls': [],
+                },
+                'description': {
+                    'urls': [],
+                },
+            },
+        }
+
+
     def test_extract_urls(self):
         actual = get_urls(self.user_obj_fragment)
         expected = sorted([
@@ -259,6 +272,10 @@ class TestGetUrls(unittest.TestCase):
             'http://techunity2.dev',
         ])
         self.assertEqual(expected, actual)
+
+    def test_empty_urls(self):
+        actual = get_urls(self.empty_obj_fragment)
+        self.assertEqual([], actual)
 
     @responses.activate
     def test_extract_urls_empty(self):
