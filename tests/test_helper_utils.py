@@ -313,8 +313,8 @@ class TestGetUrls(unittest.TestCase):
         expected = sorted([
             'https://www.curabase.com',
             'https://www.simplecto.com',
-            'http://techunity.dev',
-            'http://techunity2.dev',
+            'https://techunity.dev',
+            'https://techunity2.dev',
         ])
         self.assertEqual(expected, actual)
 

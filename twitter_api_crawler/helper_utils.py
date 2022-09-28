@@ -157,8 +157,8 @@ def unroll_url(url: str) -> str:
     unrolled url string
 
     """
-    if url.startswith('http://t.co'):
-        return unroll_url(url.replace('http://t.co', 'https://t.co'))
+    if url.startswith('http://'):
+        return unroll_url(url.replace('http://', 'https://'))
 
     if not url.startswith('https://t.co'):
         return url
