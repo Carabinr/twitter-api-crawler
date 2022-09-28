@@ -164,7 +164,10 @@ def unroll_url(url: str) -> str:
         return url.rstrip('/')
 
     session = requests.Session()
-    resp = session.head(url, allow_redirects=False)
+    try:
+        resp = session.head(url, allow_redirects=False)
+    except UnicodeDecodeError:
+        return url.strip('/')
 
     if resp.status_code in [301, 302]:
         return resp.next.url.rstrip('/')
