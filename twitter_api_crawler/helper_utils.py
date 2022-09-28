@@ -158,10 +158,10 @@ def unroll_url(url: str) -> str:
 
     """
     if url.startswith('http://'):
-        return unroll_url(url.replace('http://', 'https://'))
+        url = url.replace('http://', 'https://')
 
     if not url.startswith('https://t.co'):
-        return url
+        return url.rstrip('/')
 
     session = requests.Session()
     resp = session.head(url, allow_redirects=False)
@@ -169,7 +169,7 @@ def unroll_url(url: str) -> str:
     if resp.status_code in [301, 302]:
         return resp.next.url.rstrip('/')
 
-    return url
+    return url.rstrip('/')
 
 def get_urls(user: Dict) -> List[str]:
     """
