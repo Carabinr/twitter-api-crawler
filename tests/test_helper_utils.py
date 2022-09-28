@@ -253,6 +253,31 @@ class TestUnrollUrl(unittest.TestCase):
         out = unroll_url(url)
         self.assertEqual('https://www.curabase.com', out)
 
+    @responses.activate
+    def test_t_com(self):
+        """
+        True story, someone put t.com/something in their twitter bio.
+
+        Our code did only looked for t.co NOT t.co/
+
+        so yea, that blew up in our face.
+        Returns
+        -------
+
+        """
+        url = 'https://t.com/yourmom'
+
+        rsp1 = responses.Response(
+            url=url,
+            method='HEAD',
+            status=301,
+            headers={'Location': 'https://www.youfailedatlife.sucker/'},
+        )
+        responses.add(rsp1)
+        out = unroll_url(url)
+        self.assertEqual('https://t.com/yourmom', out)
+
+
 
 class TestGetUrls(unittest.TestCase):
 

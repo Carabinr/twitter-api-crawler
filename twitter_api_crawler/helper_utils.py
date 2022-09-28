@@ -160,7 +160,7 @@ def unroll_url(url: str) -> str:
     if url.startswith('http://'):
         url = url.replace('http://', 'https://')
 
-    if not url.startswith('https://t.co'):
+    if not url.startswith('https://t.co/'):
         return url.rstrip('/')
 
     session = requests.Session()
